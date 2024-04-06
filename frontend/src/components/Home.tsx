@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useConnectUI, useIsConnected, useWallet } from "@fuels/react";
-
 import { BN, BigNumberish, Contract } from "fuels";
 import { ContractAbi, ContractAbi__factory } from "../contracts-api";
 import { ProposalInput } from "../contracts-api/contracts/ContractAbi";
