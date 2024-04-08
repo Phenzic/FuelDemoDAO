@@ -1,56 +1,47 @@
 import React, { useEffect, useState } from "react";
 import { useConnectUI, useIsConnected, useWallet } from "@fuels/react";
-import { BN, BigNumberish, Contract } from "fuels";
+import { AbstractAddress, Contract } from "fuels";
 import { ContractAbi, ContractAbi__factory } from "../contracts-api";
 import { ProposalInput } from "../contracts-api/contracts/ContractAbi";
 
 const CONTRACT_ID =
-  "0xfd6afe13d5993ad373984e74e305427f2e86f852050c135d7e88ce5afcaaa376"; // Replace with your contract ID
+  "0xe1a2a7ebadc501e173c9f4bd08665a49e1e32571453f883d68c1c4cb7fc46363"; // Replace with your contract ID
 
 const Home: React.FC = () => {
   const [contract, setContract] = useState<ContractAbi>();
   const [proposalCount, setProposalCount] = useState<number>();
+  const [proposalIdInput, setProposalIdInput] = useState<string>("");
   const [proposals, setProposals] = useState<any[]>([]); // Define proposals state
-  const [proposalIdInput, setProposalIdInput] = useState<string>(""); // State for proposal ID input
   const { connect, isConnecting } = useConnectUI();
   const { isConnected } = useIsConnected();
   const { wallet } = useWallet();
   const [acceptancePercentage, setAcceptancePercentage] = useState<number>(50);
   const [duration, setDuration] = useState<number>(7);
-  const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>(
-    {
-      amount: 0,
-      asset: { value: "" },
-      call_data: { arguments: 0, function_selector: 0, id: { value: "" } },
-      gas: 0,
-    }
-  );
-  const [activeTab, setActiveTab] = useState<string>("create");
+  const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
+    amount: 0,
+    asset: { value: "" },
+    call_data: { arguments: 0, function_selector: 0, id: { value: "" } },
+    gas: 0,
+  });
+  const [activeTab, setActiveTab] = useState<string>('create');
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [userVotes, setUserVotes] = useState<number>(0);
 
   useEffect(() => {
-    async function initializeContract() {
-      if (isConnected && wallet) {
-        const contractInstance = ContractAbi__factory.connect(
-          CONTRACT_ID,
-          wallet
-        );
-        setContract(contractInstance);
-        await fetchProposalCount(contractInstance);
-        await fetchProposals(contractInstance, proposalIdInput); // Fetch proposals when initializing contract
-      }
+    if (isConnected && wallet) {
+      console.log(wallet.address)
+      const initializeContract = async () => {
+        try {
+          const contractInstance = ContractAbi__factory.connect(CONTRACT_ID, wallet);
+          setContract(contractInstance);
+          // await fetchUserBalance(contractInstance);
+        } catch (error) {
+          console.error("Error initializing contract:", error);
+        }
+      };
+      initializeContract();
     }
-
-    initializeContract();
-  }, [isConnected, wallet, proposalIdInput]);
-
-  const fetchProposalCount = async (contractInstance: ContractAbi) => {
-    try {
-      const count = await contractInstance.functions.proposal_count().call();
-      setProposalCount(Number(count));
-    } catch (error) {
-      console.error("Error fetching proposal count:", error);
-    }
-  };
+  }, [isConnected, wallet]);
 
   const fetchProposals = async (
     contractInstance: ContractAbi,
@@ -74,43 +65,59 @@ const Home: React.FC = () => {
       // Handle the error as needed
     }
   };
+  const fetchUserBalance = async (contractInstance: ContractAbi) => {
+    try {
+      const balance = await contractInstance.functions.balance().call();
+      setUserBalance(Number(balance));
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+    }
+  };
+
+  const getUserAddress = async (): Promise<string> => {
+    if (wallet) {
+      return wallet.address.toAddress();
+    } else {
+      throw new Error('User wallet is not connected.');
+    }
+  };
 
   const createProposal = async () => {
     try {
       if (!contract) throw new Error("Contract instance is not available");
-      // Call the create_proposal function on your contract
+      console.log("got here")
       contract.functions.create_proposal(
         acceptancePercentage,
         duration,
         proposalTransaction
       );
-      // You may want to update state or display a success message upon successful creation
+      console.log("got here too")
       console.log("Proposal created successfully");
     } catch (error) {
-      // Handle any errors that occur during the proposal creation process
       console.error("Error creating proposal:", error);
-      // You may want to display an error message to the user
     }
   };
 
-  const voteOnProposal = async (proposalId: BigNumberish) => {
+  const voteOnProposal = async (proposalId: string) => {
     try {
-      // Assuming you have a function to get the vote amount from somewhere
-      const voteAmount = await getVoteAmount(); // Get the actual amount of votes
-      // Call the vote function on your contract
+      const voteAmount = await getVoteAmount();
       contract?.functions.vote(true, proposalId, voteAmount);
-      // You may want to update state or display a success message upon successful vote
     } catch (error) {
-      // Handle any errors that occur during the voting process
       console.error("Error voting on proposal:", error);
-      // You may want to display an error message to the user
     }
   };
 
   const getVoteAmount = async () => {
-    // Implement your logic to get the actual amount of votes
-    // For example, fetch it from the backend or calculate it based on some conditions
-    return 100; // Dummy value, replace it with your actual logic
+    return 0;
+  };
+
+  const fetchProposalCount = async (contractInstance: ContractAbi) => {
+    try {
+      const count = await contractInstance.functions.proposal_count().call();
+      setProposalCount(Number(count));
+    } catch (error) {
+      console.error("Error fetching proposal count:", error);
+    }
   };
 
   return (
@@ -154,8 +161,6 @@ const Home: React.FC = () => {
                   value={duration}
                   onChange={(e) => setDuration(parseInt(e.target.value))}
                 />
-                {/* Assuming you have inputs for proposal transaction details */}
-                {/* Example inputs: */}
                 <label>Proposal Amount:</label>
                 <input
                   type="number"
@@ -167,14 +172,12 @@ const Home: React.FC = () => {
                     })
                   }
                 />
-                {/* Similar inputs for other proposal transaction details */}
                 <button onClick={createProposal}>Create Proposal</button>
               </>
             )}
             {activeTab === "vote" && (
               <>
                 <h3 style={styles.label}>Available Proposals</h3>
-                {/* Render list of available proposals */}
                 <div>
                   <label>Proposal ID:</label>
                   <input
@@ -190,21 +193,17 @@ const Home: React.FC = () => {
                     Fetch Proposal
                   </button>
                 </div>
-                {proposals.map(
-                  (
-                    proposal: any // Adjust the type of proposal according to your data structure
-                  ) => (
-                    <div key={proposal.id} style={{ marginBottom: "10px" }}>
-                      <div>{proposal.text}</div>
-                      <button
-                        onClick={() => voteOnProposal(proposal.id)}
-                        style={styles.button}
-                      >
-                        Vote
-                      </button>
-                    </div>
-                  )
-                )}
+                {proposals.map((proposal: any) => (
+                  <div key={proposal.id} style={{ marginBottom: "10px" }}>
+                    <div>{proposal.text}</div>
+                    <button
+                      onClick={() => voteOnProposal(proposal.id)}
+                      style={styles.button}
+                    >
+                      Vote
+                    </button>
+                  </div>
+                ))}
               </>
             )}
           </>
@@ -220,18 +219,17 @@ const Home: React.FC = () => {
 
 const styles = {
   root: {
-    display: "grid",
-    placeItems: "center",
-    height: "100vh",
-    width: "100vw",
-    backgroundColor: "blue",
+    display: 'grid',
+    placeItems: 'center',
+    height: '100vh',
+    width: '100vw',
+    backgroundColor: "black",
   } as React.CSSProperties,
   container: {
     color: "#ffffffec",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    padding: "20px", // Adding some padding for better spacing
   } as React.CSSProperties,
   tabContainer: {
     display: "flex",
@@ -251,8 +249,9 @@ const styles = {
     color: "#ffffffec", // Adjusted color for better visibility
   } as React.CSSProperties,
   label: {
-    fontSize: "28px",
-  },
+    fontSize: "18px",
+    marginTop: "10px",
+  } as React.CSSProperties,
   button: {
     borderRadius: "8px",
     marginTop: "24px",
@@ -261,10 +260,10 @@ const styles = {
     color: "#ffffffec",
     border: "none",
     outline: "none",
-    height: "60px",
+    height: "40px",
     padding: "0 1rem",
     cursor: "pointer",
-  },
+  } as React.CSSProperties,
 };
 
 export default Home;
