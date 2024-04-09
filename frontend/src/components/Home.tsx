@@ -17,12 +17,13 @@ const Home: React.FC = () => {
   const { wallet } = useWallet();
   const [acceptancePercentage, setAcceptancePercentage] = useState<number>(50);
   const [duration, setDuration] = useState<number>(7);
-  const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
-    amount: 0,
-    asset: { value: "" },
-    call_data: { arguments: 0, function_selector: 0, id: { value: "" } },
-    gas: 0,
-  });
+const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
+  amount: 0, // Initial value for amount
+  asset: { value: "" }, // Initial value for asset
+  call_data: { arguments: 0, function_selector: 0, id: { value: "" } }, // Initial value for call_data
+  gas: 10000, // Initial value for gas
+});
+
   const [activeTab, setActiveTab] = useState<string>('create');
   const [userBalance, setUserBalance] = useState<number>(0);
   const [userVotes, setUserVotes] = useState<number>(0);
@@ -85,11 +86,30 @@ const Home: React.FC = () => {
   const createProposal = async () => {
     try {
       if (!contract) throw new Error("Contract instance is not available");
+
       console.log("got here")
+      const coins = await wallet?.getCoins(); // Call getCoins function and await its result
+      const assetId = coins?.[0]?.assetId;
+ 
+      // Extract asset ID from the coins array
+      if (!wallet || !wallet.address) throw new Error("Wallet address is not available");
+      const setProposalTransaction = {
+        amount: acceptancePercentage, // Update amount
+        asset: { value: wallet.address.toString() }, // Update asset ID
+        call_data: {
+          arguments: 123, // Update call data arguments (example value)
+          function_selector: 456, // Update function selector (example value)
+          id: { value: wallet.address.toString()} , // Update call data ID
+        },
+        gas: 10000,
+      };
+      console.log("passed here")
       contract.functions.create_proposal(
         acceptancePercentage,
         duration,
-        proposalTransaction
+        setProposalTransaction
+
+
       );
       console.log("got here too")
       console.log("Proposal created successfully");
