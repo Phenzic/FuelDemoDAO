@@ -87,7 +87,6 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
     try {
       if (!contract) throw new Error("Contract instance is not available");
 
-      console.log("got here")
       const coins = await wallet?.getCoins(); // Call getCoins function and await its result
       const assetId = coins?.[0]?.assetId;
  
@@ -95,15 +94,14 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
       if (!wallet || !wallet.address) throw new Error("Wallet address is not available");
       const setProposalTransaction = {
         amount: acceptancePercentage, // Update amount
-        asset: { value: wallet.address.toString() }, // Update asset ID
+        asset: { value: wallet.address.toB256() }, // Update asset ID
         call_data: {
           arguments: 123, // Update call data arguments (example value)
           function_selector: 456, // Update function selector (example value)
-          id: { value: wallet.address.toString()} , // Update call data ID
+          id: { value: wallet.address.toB256()} , // Update call data ID
         },
         gas: 10000,
       };
-      console.log("passed here")
       contract.functions.create_proposal(
         acceptancePercentage,
         duration,
