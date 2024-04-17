@@ -1,85 +1,74 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useConnectUI, useIsConnected, useWallet } from "@fuels/react";
-import { AbstractAddress, Contract } from "fuels";
-import { ContractAbi, ContractAbi__factory } from "../contracts-api";
+import { ContractAbi__factory } from "../contracts-api";
 import { ProposalInput } from "../contracts-api/contracts/ContractAbi";
+import type { ContractAbi } from "../contracts-api/contracts/ContractAbi";
+import { fetchBalance, getUserAddress } from "./contractUtils"; 
+import ProposalCount from "./proposalCount";
+import styles from "./styles";
 
-const CONTRACT_ID =
-  "0xe1a2a7ebadc501e173c9f4bd08665a49e1e32571453f883d68c1c4cb7fc46363"; // Replace with your contract ID
+const CONTRACT_ID = "";
+
 
 const Home: React.FC = () => {
+  const [userAddress, setUserAddress] = useState<string>("");
   const [contract, setContract] = useState<ContractAbi>();
-  const [proposalCount, setProposalCount] = useState<number>();
+  const [showProposalCount, setShowProposalCount] = useState(false);
   const [proposalIdInput, setProposalIdInput] = useState<string>("");
-  const [proposals, setProposals] = useState<any[]>([]); // Define proposals state
+  const [proposals, setProposals] = useState<any[]>([]); 
   const { connect, isConnecting } = useConnectUI();
   const { isConnected } = useIsConnected();
   const { wallet } = useWallet();
   const [acceptancePercentage, setAcceptancePercentage] = useState<number>(50);
   const [duration, setDuration] = useState<number>(7);
-const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
-  amount: 0, // Initial value for amount
-  asset: { value: "" }, // Initial value for asset
-  call_data: { arguments: 0, function_selector: 0, id: { value: "" } }, // Initial value for call_data
-  gas: 10000, // Initial value for gas
-});
-
+  const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
+    amount: 0,
+    asset: { value: "" },
+    call_data: { arguments: 0, function_selector: 0, id: { value: "" } },
+    gas: 10000,
+  });
   const [activeTab, setActiveTab] = useState<string>('create');
   const [userBalance, setUserBalance] = useState<number>(0);
-  const [userVotes, setUserVotes] = useState<number>(0);
+
+  // useRef to persist isInitialized value across renders
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (isConnected && wallet) {
-      console.log(wallet.address)
+    if (isConnected && wallet && !isInitializedRef.current) {
       const initializeContract = async () => {
         try {
           const contractInstance = ContractAbi__factory.connect(CONTRACT_ID, wallet);
           setContract(contractInstance);
-          // await fetchUserBalance(contractInstance);
+          await fetchBalance(contractInstance, setUserBalance);
+          const address = await getUserAddress(wallet);
+          setUserAddress(address);
+          isInitializedRef.current = true;
         } catch (error) {
           console.error("Error initializing contract:", error);
         }
       };
+
       initializeContract();
     }
   }, [isConnected, wallet]);
+
+  
 
   const fetchProposals = async (
     contractInstance: ContractAbi,
     proposalId: string
   ) => {
     try {
-      // Fetch the proposal from the contract
       const proposal = await contractInstance.functions
         .proposal(proposalId)
         .call();
-      // Check if the proposal is not null or undefined
       if (proposal) {
-        // Set the proposal in the state
-        setProposals([proposal]); // Wrap the single proposal in an array
+        setProposals([proposal]);
       } else {
-        // If proposal is null or undefined, clear the state
         setProposals([]);
       }
     } catch (error) {
       console.error("Error fetching proposals:", error);
-      // Handle the error as needed
-    }
-  };
-  const fetchUserBalance = async (contractInstance: ContractAbi) => {
-    try {
-      const balance = await contractInstance.functions.balance().call();
-      setUserBalance(Number(balance));
-    } catch (error) {
-      console.error("Error fetching user balance:", error);
-    }
-  };
-
-  const getUserAddress = async (): Promise<string> => {
-    if (wallet) {
-      return wallet.address.toAddress();
-    } else {
-      throw new Error('User wallet is not connected.');
     }
   };
 
@@ -87,18 +76,15 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
     try {
       if (!contract) throw new Error("Contract instance is not available");
 
-      const coins = await wallet?.getCoins(); // Call getCoins function and await its result
-      const assetId = coins?.[0]?.assetId;
  
-      // Extract asset ID from the coins array
       if (!wallet || !wallet.address) throw new Error("Wallet address is not available");
       const setProposalTransaction = {
-        amount: acceptancePercentage, // Update amount
-        asset: { value: wallet.address.toB256() }, // Update asset ID
+        amount: acceptancePercentage,
+        asset: { value: wallet.address.toB256() },
         call_data: {
-          arguments: 123, // Update call data arguments (example value)
-          function_selector: 456, // Update function selector (example value)
-          id: { value: wallet.address.toB256()} , // Update call data ID
+          arguments: 123,
+          function_selector: 456,
+          id: { value: wallet.address.toB256()},
         },
         gas: 10000,
       };
@@ -106,10 +92,7 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
         acceptancePercentage,
         duration,
         setProposalTransaction
-
-
-      );
-      console.log("got here too")
+      ).call();
       console.log("Proposal created successfully");
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -129,22 +112,27 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
     return 0;
   };
 
-  const fetchProposalCount = async (contractInstance: ContractAbi) => {
-    try {
-      const count = await contractInstance.functions.proposal_count().call();
-      setProposalCount(Number(count));
-    } catch (error) {
-      console.error("Error fetching proposal count:", error);
-    }
-  };
+
+  // const handleFetchProposalCount = () => {
+  //   setShowProposalCount(true);
+  // };
 
   return (
     <div style={styles.root}>
       <div style={styles.container}>
+      {isConnected && wallet && <ProposalCount wallet={wallet} />}
+        {/* Rest of your component */}
+        {/* Display proposal count */}
+        {/* <div style={{ ...styles.userInfo, position: 'absolute', top: '10px', right: '10px' }}>Total Proposals: {ProposalCount}</div> */}
+        {/* Display user address if connected */}
+        {isConnected && userAddress && <div style={{ ...styles.userInfo, marginBottom: '10px' }}>User Address: {userAddress}</div>}
+        {/* Display user balance */}
+        {userBalance !== null && <div style={styles.userInfo}>User Balance: {userBalance}</div>}
         {isConnected ? (
           <>
             <div style={styles.tabContainer}>
               <div
+              className="text=3xl"
                 style={{
                   ...styles.tab,
                   ...(activeTab === "create" && styles.activeTab),
@@ -232,56 +220,7 @@ const [proposalTransaction, setProposalTransaction] = useState<ProposalInput>({
         )}
       </div>
     </div>
-  );
-};
-
-const styles = {
-  root: {
-    display: 'grid',
-    placeItems: 'center',
-    height: '100vh',
-    width: '100vw',
-    backgroundColor: "black",
-  } as React.CSSProperties,
-  container: {
-    color: "#ffffffec",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  } as React.CSSProperties,
-  tabContainer: {
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: "20px",
-  } as React.CSSProperties,
-  tab: {
-    marginRight: "10px",
-    cursor: "pointer",
-    fontSize: "20px",
-    color: "#a0a0a0", // Adjusted color for better visibility
-    borderBottom: "2px solid transparent",
-    paddingBottom: "5px",
-  } as React.CSSProperties,
-  activeTab: {
-    borderBottom: "2px solid #ffffffec", // Highlighting the active tab
-    color: "#ffffffec", // Adjusted color for better visibility
-  } as React.CSSProperties,
-  label: {
-    fontSize: "18px",
-    marginTop: "10px",
-  } as React.CSSProperties,
-  button: {
-    borderRadius: "8px",
-    marginTop: "24px",
-    backgroundColor: "#707070",
-    fontSize: "16px",
-    color: "#ffffffec",
-    border: "none",
-    outline: "none",
-    height: "40px",
-    padding: "0 1rem",
-    cursor: "pointer",
-  } as React.CSSProperties,
+  );  
 };
 
 export default Home;

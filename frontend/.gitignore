@@ -2,11 +2,13 @@
 
 # dependencies
 /node_modules
+/frontend2
 /.pnp
 .pnp.js
-
+.env
 # testing
 /coverage
+
 
 # production
 /build
