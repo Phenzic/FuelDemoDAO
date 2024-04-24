@@ -6,7 +6,7 @@ interface ProposalCountProps {
   wallet: any; // Adjust the type of wallet as per your application
 }
 
-const CONTRACT_ID = "0xe1a2a7ebadc501e173c9f4bd08665a49e1e32571453f883d68c1c4cb7fc46363";
+const CONTRACT_ID = "";
 
 const ProposalCount: React.FC<ProposalCountProps> = ({ wallet }) => {
   const [proposalCount, setProposalCount] = useState<number | null>(null);
